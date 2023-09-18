@@ -9,3 +9,56 @@ datasource db {
   provider = "cockroachdb"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id        String      @id @default(uuid())
+  username  String      @unique
+  password  String
+  post      Post[]
+  subreddit Subreddit[]
+  upvote    Upvote[]
+  Downvote  Downvote[]
+}
+
+model Post {
+  id          String     @id @default(uuid())
+  text        String     @unique
+  title       String?    @unique
+  parentId    String?
+  user        User       @relation(fields: [userId], references: [id])
+  userId      String
+  subreddit   Subreddit  @relation(fields: [subredditId], references: [id])
+  subredditId String
+  upvotes     Upvote[]
+  downvotes   Downvote[]
+  children    Post[]     @relation("parent-child")
+  parent      Post?      @relation("parent-child", fields: [parentId], references: [id])
+}
+
+model Subreddit {
+  id     String @id @default(uuid())
+  name   String
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  post   Post[]
+}
+
+model Upvote {
+  id     String @id @default(uuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  post   Post   @relation(fields: [postId], references: [id])
+  postId String
+
+  @@unique([userId, postId])
+}
+
+model Downvote {
+  id     String @id @default(uuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  post   Post   @relation(fields: [postId], references: [id])
+  postId String
+
+  @@unique([userId, postId])
+}
