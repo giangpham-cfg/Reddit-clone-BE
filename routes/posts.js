@@ -1,9 +1,6 @@
 import express from "express";
 import { prisma } from "../index.js";
-import jwt from "jsonwebtoken";
 export const postsRoute = express.Router();
-
-postsRoute.use(express.json());
 
 //GET /posts
 postsRoute.get("/", async (req, res) => {
@@ -33,8 +30,6 @@ postsRoute.get("/", async (req, res) => {
 //POST /posts
 postsRoute.post("/", async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1];
-    const { userId } = jwt.verify(token, process.env.JWT_SECRET);
     const { text, title, subredditId, parentId } = req.body;
     if (!text)
       return res.send({
@@ -46,12 +41,19 @@ postsRoute.post("/", async (req, res) => {
         success: false,
         error: "Subreddit must be provided to create a message!",
       });
+
+    if (!req.user) {
+      return res.send({
+        success: false,
+        error: "You must be logged in to create a post.",
+      });
+    }
     const post = await prisma.post.create({
       data: {
         text,
         title,
         subredditId,
-        userId,
+        userId: req.user.id,
         parentId,
       },
     });
@@ -68,21 +70,42 @@ postsRoute.post("/", async (req, res) => {
 //PUT /posts/:postId
 postsRoute.put("/:postId", async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1];
-    const { userId } = jwt.verify(token, process.env.JWT_SECRET);
     const { postId } = req.params;
     const { title, text } = req.body;
 
+    if (!req.user) {
+      return res.send({
+        success: false,
+        error: "You must be logged in to update a post.",
+      });
+    }
     if (!postId)
       return res.send({
         success: false,
-        error: "The post not found.",
+        error: "Post ID not provided.",
       });
+    const findPost = await prisma.post.findUnique({
+      where: {
+        id: postId,
+      },
+    });
+    if (!findPost) {
+      return res.send({
+        success: false,
+        error: "The post was not found.",
+      });
+    }
     if (!title && !text)
       return res.send({
         success: false,
         error: "Should provide title or text to update a post!",
       });
+    if (findPost.userId !== req.user.id) {
+      return res.send({
+        success: false,
+        error: "You don't have permission to delete this post.",
+      });
+    }
     const post = await prisma.post.update({
       where: {
         id: postId,
@@ -105,9 +128,14 @@ postsRoute.put("/:postId", async (req, res) => {
 //DELETE /posts/:postId
 postsRoute.delete("/:postId", async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1];
-    const { userId } = jwt.verify(token, process.env.JWT_SECRET);
     const { postId } = req.params;
+
+    if (!req.user) {
+      return res.send({
+        success: false,
+        error: "You must be logged in to create a post.",
+      });
+    }
     if (!postId)
       return res.send({
         success: false,
@@ -124,7 +152,7 @@ postsRoute.delete("/:postId", async (req, res) => {
         error: "The post was not found.",
       });
     }
-    if (post.userId !== userId) {
+    if (post.userId !== req.user.id) {
       return res.send({
         success: false,
         error: "You don't have permission to delete this post.",

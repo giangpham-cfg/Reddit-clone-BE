@@ -3,12 +3,8 @@ import { prisma } from "../index.js";
 import jwt from "jsonwebtoken";
 import Joi from "joi";
 import bcrypt from "bcrypt";
-import dotenv from "dotenv";
+
 export const usersRoute = express.Router();
-
-dotenv.config();
-
-usersRoute.use(express.json());
 
 //POST /users/register
 usersRoute.post("/register", async (req, res) => {
@@ -118,17 +114,17 @@ usersRoute.post("/login", async (req, res) => {
 //GET /users/token
 usersRoute.get("/token", async (req, res) => {
   try {
-    const token = req.headers.authorization.split(" ")[1];
-    const { userId } = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-    });
-    delete user.password;
+    // const token = req.headers.authorization.split(" ")[1];
+    // const { userId } = jwt.verify(token, process.env.JWT_SECRET);
+    // const user = await prisma.user.findUnique({
+    //   where: {
+    //     id: userId,
+    //   },
+    // });
+    // delete user.password;
     res.send({
       success: true,
-      user,
+      user: req.user,
     });
   } catch (error) {
     console.log(error);
