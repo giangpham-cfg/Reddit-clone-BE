@@ -61,7 +61,7 @@ subredditsRoute.delete("/:subredditId", async (req, res) => {
         success: false,
         error: "Subreddit ID not provided.",
       });
-    const subreddit = await prisma.post.findUnique({
+    const subreddit = await prisma.subreddit.findUnique({
       where: {
         id: subredditId,
       },
