@@ -4,7 +4,11 @@ export const subredditsRoute = express.Router();
 
 subredditsRoute.get("/", async (req, res) => {
   try {
-    const subreddits = await prisma.subreddit.findMany();
+    const subreddits = await prisma.subreddit.findMany({
+      include: {
+        posts: true,
+      },
+    });
     res.send({
       success: true,
       subreddits,
