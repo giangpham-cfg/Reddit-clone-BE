@@ -5,7 +5,22 @@ export const postsRoute = express.Router();
 //GET /posts
 postsRoute.get("/", async (req, res) => {
   try {
-    const posts = await prisma.post.findMany({
+    const nestComments = (comments, parentId = null) => {
+      const nestedComments = [];
+
+      for (const comment of comments) {
+        if (comment.parentId === parentId) {
+          // Recursively nest child comments
+          const children = nestComments(comments, comment.id);
+          if (children.length > 0) {
+            comment.children = children;
+          }
+          nestedComments.push(comment);
+        }
+      }
+      return nestedComments;
+    };
+    const allPosts = await prisma.post.findMany({
       include: {
         user: true,
         subreddit: true,
@@ -14,10 +29,13 @@ postsRoute.get("/", async (req, res) => {
         children: true,
       },
     });
-    res.send({
-      success: true,
-      posts,
-    });
+
+    const postWithComments = nestComments(allPosts);
+    res.send({ success: true, posts: postWithComments });
+    // res.send({
+    //   success: true,
+    //   posts,
+    // });
   } catch (error) {
     console.log(error);
     res.send({
@@ -48,16 +66,49 @@ postsRoute.post("/", async (req, res) => {
         error: "You must be logged in to create a post.",
       });
     }
-    const post = await prisma.post.create({
-      data: {
-        text,
-        title,
-        subredditId,
-        userId: req.user.id,
-        parentId,
-      },
-    });
-    return res.send({ success: true, post });
+
+    if (parentId) {
+      const parentPost = await prisma.post.findUnique({
+        where: { id: parentId },
+      });
+
+      if (!parentPost) {
+        return res.send({ error: "The post not found." });
+      }
+
+      const childPost = await prisma.post.create({
+        data: {
+          text,
+          subredditId,
+          userId: req.user.id,
+          parentId,
+        },
+      });
+
+      return res.send({ success: true, post: childPost });
+    } else {
+      const post = await prisma.post.create({
+        data: {
+          text,
+          title,
+          subredditId,
+          userId: req.user.id,
+        },
+      });
+
+      return res.send({ success: true, post });
+    }
+
+    // const post = await prisma.post.create({
+    //   data: {
+    //     text,
+    //     title,
+    //     subredditId,
+    //     userId: req.user.id,
+    //     parentId,
+    //   },
+    // });
+    // return res.send({ success: true, post });
   } catch (error) {
     console.log(error);
     res.send({
